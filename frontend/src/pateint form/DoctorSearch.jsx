@@ -19,7 +19,7 @@ import {
   getStableRating,
   getStableReviews,
 } from "../utils/doctorFilterService";
-
+import DoctorSkeleton from '../components/DoctorSkeleton';
 const DoctorSearch = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -28,6 +28,7 @@ const DoctorSearch = () => {
   const [selectedSpecialty, setSelectedSpecialty] = useState("All");
   const [showFilters, setShowFilters] = useState(false);
   const [registeredDoctors, setRegisteredDoctors] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
 
   // Require login to access doctor search
   useEffect(() => {
@@ -60,6 +61,19 @@ const DoctorSearch = () => {
 
   const doctors = useMemo(() => getAllDoctors(registeredDoctors), [registeredDoctors]);
 
+  const fetchDoctors = async () => {
+  setIsLoading(true); // Show loading
+  try {
+    // Your existing API call
+    const response = await fetch('/api/doctors/public');
+    const data = await response.json();
+    setDoctors(data);
+  } catch (error) {
+    console.error('Error fetching doctors:', error);
+  } finally {
+    setIsLoading(false); // Hide loading
+  }
+};
   // Mock additional doctor data (keep for UI richness)
   const doctorsWithDetails = useMemo(
     () =>
