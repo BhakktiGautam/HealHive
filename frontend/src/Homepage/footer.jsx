@@ -34,7 +34,7 @@ export default function Footer() {
     const data = await res.json();
 
     if (data.role === "patient" && data.profileCompleted === false) {
-      navigate("/patient-form");
+      navigate("/doctor-profile");
     } else {
       navigate("/available-doctors");
     }
@@ -78,7 +78,7 @@ export default function Footer() {
 </li>
 
               <li><Link to="/specialties" className="hover:text-emerald-400">Specialties</Link></li>
-              <li><Link to="/book" className="hover:text-emerald-400">Consult Now</Link></li>
+              <li><Link to="/doctor-profile" className="hover:text-emerald-400">Consult Now</Link></li>
 
             </ul>
           </div>

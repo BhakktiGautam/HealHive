@@ -13,12 +13,19 @@ import {
 } from "lucide-react";
 import Navbar from "../Homepage/Navbar";
 import Footer from "../Homepage/footer";
+
 import LoadingButton from '../components/LoadingButton';
+
+import DoctorSkeleton from '../components/DoctorSkeleton';
+
 import {
   getAllDoctors,
   fetchRegisteredDoctors,
   getStableRating,
   getStableReviews,
+  getStableIsOnline,
+  getStableNextAvailable,
+  getStableLocation,
 } from "../utils/doctorFilterService";
 
 const DoctorSearch = () => {
@@ -29,7 +36,11 @@ const DoctorSearch = () => {
   const [selectedSpecialty, setSelectedSpecialty] = useState("All");
   const [showFilters, setShowFilters] = useState(false);
   const [registeredDoctors, setRegisteredDoctors] = useState([]);
+
   const [isConsulting, setIsConsulting] = useState(false);
+
+  const [isLoading, setIsLoading] = useState(true);
+
 
   // Require login to access doctor search
   useEffect(() => {
@@ -45,16 +56,22 @@ const DoctorSearch = () => {
     }
   }, [location.state?.searchQuery]);
 
-  // Load registered doctors
+  // Load registered doctors with loading state
   useEffect(() => {
     const load = async () => {
       try {
-        if (!user) return;
+        setIsLoading(true);
+        if (!user) {
+          setIsLoading(false);
+          return;
+        }
         const token = await user.getIdToken();
         const apiDocs = await fetchRegisteredDoctors(token);
         setRegisteredDoctors(apiDocs);
       } catch (err) {
         console.error("doctor fetch error", err);
+      } finally {
+        setIsLoading(false);
       }
     };
     load();
@@ -69,11 +86,11 @@ const DoctorSearch = () => {
         ...doc,
         rating: doc.rating || getStableRating(doc),
         reviews: doc.reviews || getStableReviews(doc),
-        isOnline: typeof doc.isOnline === "boolean" ? doc.isOnline : Math.random() > 0.4,
+        isOnline: typeof doc.isOnline === "boolean" ? doc.isOnline : getStableIsOnline(doc),
         nextAvailable:
-          doc.nextAvailable || "Today at " + (Math.floor(Math.random() * 8) + 9) + ":00 AM",
+          doc.nextAvailable || getStableNextAvailable(doc),
         location:
-          doc.location || ["New Delhi", "Mumbai", "Bangalore", "Hyderabad"][Math.floor(Math.random() * 4)],
+          doc.location || getStableLocation(doc),
       })),
     [doctors]
   );
@@ -220,13 +237,23 @@ const DoctorSearch = () => {
           {/* Results Count */}
           <div className="max-w-2xl mx-auto mb-6 text-slate-600 animate-fadeUp">
             <p className="text-sm font-semibold">
-              Showing <span className="text-emerald-600">{displayedDoctors.length}</span> doctors
+              Showing <span className="text-emerald-600">
+                {isLoading ? '...' : displayedDoctors.length}
+              </span> doctors
             </p>
           </div>
 
-          {/* Doctor Cards */}
+          {/* Doctor Cards or Skeletons */}
           <div className="max-w-2xl mx-auto space-y-4 animate-fadeUp">
-            {displayedDoctors.length > 0 ? (
+            {isLoading ? (
+              // Show 4 skeleton loaders while loading
+              <>
+                <DoctorSkeleton />
+                <DoctorSkeleton />
+                <DoctorSkeleton />
+                <DoctorSkeleton />
+              </>
+            ) : displayedDoctors.length > 0 ? (
               displayedDoctors.map((doctor) => (
                 <div
                   key={doctor.id}

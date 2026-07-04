@@ -337,6 +337,23 @@ export const getStableReviews = (doc) => {
   return 120 + (h % 280); // 120 - 399
 };
 
+export const getStableIsOnline = (doc) => {
+  const h = hashString(String(doc.id || doc.name || "doctor"));
+  return (h % 10) > 4;
+};
+
+export const getStableNextAvailable = (doc) => {
+  const h = hashString(String(doc.id || doc.name || "doctor"));
+  const hour = (h % 8) + 9;
+  return `Today at ${hour}:00 AM`;
+};
+
+export const getStableLocation = (doc) => {
+  const locations = ["New Delhi", "Mumbai", "Bangalore", "Hyderabad"];
+  const h = hashString(String(doc.id || doc.name || "doctor"));
+  return locations[h % locations.length];
+};
+
 // Fetch registered doctors from API
 export const fetchRegisteredDoctors = async (token) => {
   try {

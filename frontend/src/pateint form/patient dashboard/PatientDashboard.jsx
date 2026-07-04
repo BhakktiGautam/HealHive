@@ -1,5 +1,7 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "../../Context/AuthContext";
+import { MedicalReportUpload } from "../MedicalReportUpload";
+
 import {
   UserCircle,
   Stethoscope,
@@ -263,6 +265,13 @@ const PatientDashboard = ({ patient = samplePatient }) => {
     setPatientData((prev) => ({
       ...prev,
       [field]: prev[field].filter((_, i) => i !== index),
+    }));
+  };
+
+  const handleReportUploaded = (newReport) => {
+    setPatientData((prev) => ({
+      ...prev,
+      medicalDocuments: [...(prev.medicalDocuments || []), newReport],
     }));
   };
 
@@ -656,8 +665,11 @@ const PatientDashboard = ({ patient = samplePatient }) => {
               <File className="h-5 w-5 text-emerald-600" />
               <h3 className="text-lg font-bold text-slate-900">Uploaded Test Reports</h3>
             </div>
+            
+            <MedicalReportUpload onUploadSuccess={handleReportUploaded} />
+            
             <div className="grid md:grid-cols-2 gap-4">
-              {(data.testReports || []).map((file, idx) => (
+              {(data.medicalDocuments || []).map((file, idx) => (
                 <div
                   key={idx}
                   className="flex items-center gap-3 p-4 rounded-2xl border border-emerald-100 bg-gradient-to-r from-emerald-50 to-teal-50"
@@ -673,10 +685,11 @@ const PatientDashboard = ({ patient = samplePatient }) => {
                     <p className="text-sm font-semibold text-slate-900 truncate">{file.name}</p>
                     <p className="text-xs text-slate-500">{file.size} • {file.date}</p>
                   </div>
-                  <button className="text-emerald-600 text-xs font-semibold hover:underline">View</button>
+                  <button onClick={() => window.open(file.url, "_blank")}
+                  className="text-emerald-600 text-xs font-semibold hover:underline">View</button>
                 </div>
               ))}
-              {(!data.testReports || data.testReports.length === 0) && (
+              {(!data.medicalDocuments || data.medicalDocuments.length === 0) && (
                 <p className="text-sm text-slate-500">No reports uploaded.</p>
               )}
             </div>
