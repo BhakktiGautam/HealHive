@@ -69,6 +69,21 @@ router.get("/get", verifyFirebaseToken, async (req, res, next) => {
   }
 });
 
+// Add this new route in backend/routes/Patient.js
+router.post("/documents/add", verifyFirebaseToken, async (req, res, next) => {
+  try {
+    const uid = req.user.uid;
+    const patient = await Patient.findOneAndUpdate(
+      { uid },
+      { $push: { medicalDocuments: req.body } },  // $push appends, not replaces
+      { new: true }
+    );
+    res.status(200).json({ success: true, patient });
+  } catch (err) {
+    next(err);
+  }
+});
+
 // ✅ UPDATE patient data
 router.put("/update", verifyFirebaseToken, async (req, res, next) => {
   try {

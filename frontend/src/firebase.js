@@ -1,6 +1,7 @@
 import { initializeApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
 import { getAnalytics } from "firebase/analytics";
+import { getStorage } from "firebase/storage";
 // import { getFirestore } from "firebase/firestore";
 
 const firebaseConfig = {
@@ -14,10 +15,11 @@ const firebaseConfig = {
 };
 
 
-
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 
+
+export const storage  = getStorage(app);
 // Initialize Firebase Authentication and get a reference to the service
 export const auth = getAuth(app);
 // Initialize Analytics (only in browser)

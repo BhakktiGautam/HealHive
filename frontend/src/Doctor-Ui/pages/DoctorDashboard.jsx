@@ -12,6 +12,7 @@ import {
   Search,
   User,
   X,
+  PhoneCall,
 } from "lucide-react";
 import Navbar from "../../Homepage/Navbar";
 import Footer from "../../Homepage/footer";
@@ -216,14 +217,9 @@ const DoctorDashboard = () => {
               return (
                 <div
                   key={idx}
-                  onClick={() => {
-                    if (active && a.consultationId) {
-                      navigate(`/chat/${a.consultationId}`);
-                    }
-                  }}
                   className={`flex flex-col md:flex-row md:justify-between md:items-center p-4 rounded-xl border gap-3 ${
                     active
-                      ? "bg-emerald-50 border-emerald-200 cursor-pointer hover:bg-emerald-100 transition"
+                      ? "bg-emerald-50 border-emerald-200"
                       : isPaid
                       ? "bg-slate-50 border-slate-200 opacity-60"
                       : "bg-amber-50 border-amber-200"
@@ -236,18 +232,44 @@ const DoctorDashboard = () => {
                     {a.consultationId && <p className="text-xs text-slate-400">ID: {a.consultationId.slice(0, 8)}...</p>}
                   </div>
 
-                  <div className="flex flex-col items-end gap-1">
+                  <div className="flex flex-col items-end gap-2">
                     {!isPaid ? (
                       <span className="text-sm font-medium text-amber-600">Payment Pending</span>
                     ) : active ? (
                       <>
-                        <div className="flex items-center gap-2">
-                          <MessageSquare className="h-4 w-4 text-emerald-600" />
-                          <span className="text-sm font-medium text-emerald-600">
-                            Active
-                          </span>
-                        </div>
                         <span className="text-xs text-slate-500">{(24 - hoursSince).toFixed(0)}h left</span>
+                        <div className="flex gap-2">
+                          {/* Chat button */}
+                          <button
+                            onClick={() => navigate(`/chat/${a.consultationId}`)}
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-100 text-emerald-700 hover:bg-emerald-200 transition text-sm font-semibold"
+                            title="Open Chat"
+                          >
+                            <MessageSquare className="h-4 w-4" />
+                            Chat
+                          </button>
+                          {/* Video call button */}
+                          <button
+                            onClick={() =>
+                              navigate(`/call-room/${a.consultationId}`, {
+                                state: {
+                                  doctor: {
+                                    name: doctor?.fullName ? `Dr. ${doctor.fullName}` : "Doctor",
+                                    specialty: doctor?.specialty || "General Medicine",
+                                  },
+                                  slot: a.slotTime || "",
+                                  paid: true,
+                                  patientName: a.name || "Patient",
+                                },
+                              })
+                            }
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-teal-600 text-white hover:bg-teal-700 transition text-sm font-semibold"
+                            title="Join Video Call"
+                          >
+                            <PhoneCall className="h-4 w-4" />
+                            Join Call
+                          </button>
+                        </div>
                       </>
                     ) : (
                       <span className="text-sm font-medium text-slate-500">Expired</span>

@@ -18,7 +18,7 @@ const Navbar = () => {
   const [showThemeMenu, setShowThemeMenu] = useState(false);
   const { theme, toggleTheme } = useTheme();
   const [user, setUser] = useState(null);
-  const [userRole, setUserRole] = useState(null); // Track user role (patient/doctor)
+  const [userRole, setUserRole] = useState(null);
   const [searchInput, setSearchInput] = useState("");
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [activeSuggestion, setActiveSuggestion] = useState(-1);
@@ -26,6 +26,11 @@ const Navbar = () => {
   const menuRef = useRef(null);
   const navigate = useNavigate();
   const location = useLocation();
+
+  // Close mobile menu handler
+  const closeMobileMenu = () => {
+    setOpen(false);
+  };
 
   const handleNavClick = (e, to) => {
     // If link is an in-page anchor (/#id), navigate to home then scroll
@@ -40,19 +45,17 @@ const Navbar = () => {
       } else {
         document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
       }
-      setOpen(false);
-      // If link is Home and we're already on Home, just scroll to top
+      closeMobileMenu(); // Close mobile menu after click
     } else if (to === "/") {
       if (location.pathname === "/") {
         e.preventDefault();
         window.scrollTo({ top: 0, behavior: "smooth" });
-        setOpen(false);
+        closeMobileMenu(); // Close mobile menu after click
       } else {
-        // allow Link to navigate to "/"
-        setOpen(false);
+        closeMobileMenu(); // Close mobile menu after click
       }
     } else {
-      setOpen(false);
+      closeMobileMenu(); // Close mobile menu after click
     }
   };
 
@@ -104,7 +107,6 @@ const Navbar = () => {
     return suggestions.slice(0, 6);
   }, [searchInput]);
 
-  // Handle search button click
   const handleSearchDoctors = (query = searchInput) => {
     const nextQuery = query.trim();
     setShowSuggestions(false);
@@ -116,6 +118,7 @@ const Navbar = () => {
     } else {
       navigate("/doctor-search");
     }
+    closeMobileMenu(); // Close mobile menu after search
   };
 
   const handleSuggestionSelect = (suggestion) => {
@@ -123,7 +126,7 @@ const Navbar = () => {
     handleSearchDoctors(suggestion.value);
   };
 
-  // 🔥 Auth listener & fetch user role
+  // Auth listener & fetch user role
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       setUser(currentUser);
@@ -139,10 +142,10 @@ const Navbar = () => {
                 "Content-Type": "application/json",
                 Authorization: `Bearer ${token}`,
               },
-            },
+            }
           );
           const data = await res.json();
-          setUserRole(data.role); // Set 'patient' or 'doctor'
+          setUserRole(data.role);
         } catch (err) {
           console.error("Error fetching user role:", err);
         }
@@ -153,10 +156,11 @@ const Navbar = () => {
     return () => unsubscribe();
   }, []);
 
-  // 🔓 Logout
+  // Logout
   const handleLogout = async () => {
     await signOut(auth);
     setShowAccount(false);
+    closeMobileMenu(); // Close mobile menu after logout
     navigate("/login");
   };
 
@@ -184,6 +188,7 @@ const Navbar = () => {
             <Link
               to="/"
               className="text-lg font-extrabold bg-gradient-to-r from-emerald-600 via-teal-600 to-green-600 bg-clip-text text-transparent"
+              onClick={closeMobileMenu}
             >
               HealHive
             </Link>
@@ -204,7 +209,7 @@ const Navbar = () => {
 
           {/* RIGHT */}
           <div className="flex items-center gap-3" ref={menuRef}>
-            {/* 🔍 SEARCH BAR (restored) */}
+            {/* SEARCH BAR */}
             <div className="relative hidden lg:block">
               <div className="flex items-center gap-2 bg-emerald-50/60 dark:bg-slate-800 border border-emerald-100 dark:border-slate-700 rounded-xl px-3 py-2 focus-within:ring-2 focus-within:ring-emerald-200 dark:focus-within:ring-slate-700">
                 <svg
@@ -235,12 +240,12 @@ const Navbar = () => {
                       e.preventDefault();
                       setShowSuggestions(true);
                       setActiveSuggestion((current) =>
-                        Math.min(current + 1, searchSuggestions.length - 1),
+                        Math.min(current + 1, searchSuggestions.length - 1)
                       );
                     } else if (e.key === "ArrowUp") {
                       e.preventDefault();
                       setActiveSuggestion((current) =>
-                        Math.max(current - 1, 0),
+                        Math.max(current - 1, 0)
                       );
                     } else if (e.key === "Enter") {
                       e.preventDefault();
@@ -249,7 +254,7 @@ const Navbar = () => {
                         searchSuggestions[activeSuggestion]
                       ) {
                         handleSuggestionSelect(
-                          searchSuggestions[activeSuggestion],
+                          searchSuggestions[activeSuggestion]
                         );
                       } else {
                         handleSearchDoctors();
@@ -329,6 +334,7 @@ const Navbar = () => {
                       : "/patient-dashboard";
                   navigate(dashboardUrl);
                   setShowAccount(false);
+                  closeMobileMenu();
                 }}
                 className="hidden md:inline-flex bg-gradient-to-r from-emerald-600 via-teal-600 to-green-600 text-white px-5 py-2 rounded-xl text-sm font-semibold shadow hover:scale-[1.02] transition"
               >
@@ -336,7 +342,8 @@ const Navbar = () => {
               </button>
             ) : (
               <Link
-                to="/patient-form"
+                to="/doctor-profile"
+                onClick={closeMobileMenu}
                 className="hidden md:inline-flex bg-gradient-to-r from-emerald-600 via-teal-600 to-green-600 text-white px-5 py-2 rounded-xl text-sm font-semibold shadow hover:scale-[1.02] transition"
               >
                 Consult Now
@@ -365,7 +372,11 @@ const Navbar = () => {
                       toggleTheme("light");
                       setShowThemeMenu(false);
                     }}
-                    className={`flex items-center gap-2 w-full text-left px-4 py-2 text-sm text-slate-700 dark:text-slate-200 hover:bg-emerald-50 dark:hover:bg-slate-700 ${theme === "light" ? "bg-emerald-50/50 dark:bg-slate-700/50 font-semibold" : ""}`}
+                    className={`flex items-center gap-2 w-full text-left px-4 py-2 text-sm text-slate-700 dark:text-slate-200 hover:bg-emerald-50 dark:hover:bg-slate-700 ${
+                      theme === "light"
+                        ? "bg-emerald-50/50 dark:bg-slate-700/50 font-semibold"
+                        : ""
+                    }`}
                   >
                     <Sun className="h-4 w-4 text-amber-500" />
                     Light
@@ -375,7 +386,11 @@ const Navbar = () => {
                       toggleTheme("dark");
                       setShowThemeMenu(false);
                     }}
-                    className={`flex items-center gap-2 w-full text-left px-4 py-2 text-sm text-slate-700 dark:text-slate-200 hover:bg-emerald-50 dark:hover:bg-slate-700 ${theme === "dark" ? "bg-emerald-50/50 dark:bg-slate-700/50 font-semibold" : ""}`}
+                    className={`flex items-center gap-2 w-full text-left px-4 py-2 text-sm text-slate-700 dark:text-slate-200 hover:bg-emerald-50 dark:hover:bg-slate-700 ${
+                      theme === "dark"
+                        ? "bg-emerald-50/50 dark:bg-slate-700/50 font-semibold"
+                        : ""
+                    }`}
                   >
                     <Moon className="h-4 w-4 text-indigo-400" />
                     Dark
@@ -385,7 +400,11 @@ const Navbar = () => {
                       toggleTheme("system");
                       setShowThemeMenu(false);
                     }}
-                    className={`flex items-center gap-2 w-full text-left px-4 py-2 text-sm text-slate-700 dark:text-slate-200 hover:bg-emerald-50 dark:hover:bg-slate-700 ${theme === "system" ? "bg-emerald-50/50 dark:bg-slate-700/50 font-semibold" : ""}`}
+                    className={`flex items-center gap-2 w-full text-left px-4 py-2 text-sm text-slate-700 dark:text-slate-200 hover:bg-emerald-50 dark:hover:bg-slate-700 ${
+                      theme === "system"
+                        ? "bg-emerald-50/50 dark:bg-slate-700/50 font-semibold"
+                        : ""
+                    }`}
                   >
                     <Monitor className="h-4 w-4 text-slate-500" />
                     System
@@ -419,12 +438,14 @@ const Navbar = () => {
                     <>
                       <Link
                         to="/create-account"
+                        onClick={closeMobileMenu}
                         className="block px-4 py-2 text-sm hover:bg-emerald-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200"
                       >
                         Create Account
                       </Link>
                       <Link
                         to="/login"
+                        onClick={closeMobileMenu}
                         className="block px-4 py-2 text-sm hover:bg-emerald-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200"
                       >
                         Login
@@ -438,6 +459,7 @@ const Navbar = () => {
                             ? "/doctor-dashboard"
                             : "/patient-dashboard"
                         }
+                        onClick={closeMobileMenu}
                         className="block px-4 py-2 text-sm hover:bg-emerald-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200"
                       >
                         My Dashboard
@@ -446,12 +468,14 @@ const Navbar = () => {
                         <>
                           <Link
                             to="/doctor-search"
+                            onClick={closeMobileMenu}
                             className="block px-4 py-2 text-sm hover:bg-emerald-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200"
                           >
                             Find a Doctor
                           </Link>
                           <Link
                             to="/appointment-history"
+                            onClick={closeMobileMenu}
                             className="block px-4 py-2 text-sm hover:bg-emerald-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200"
                           >
                             My Appointments
@@ -460,6 +484,7 @@ const Navbar = () => {
                       )}
                       <Link
                         to="/settings"
+                        onClick={closeMobileMenu}
                         className="block px-4 py-2 text-sm hover:bg-emerald-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200"
                       >
                         Settings
@@ -476,7 +501,7 @@ const Navbar = () => {
               )}
             </div>
 
-            {/* MOBILE */}
+            {/* MOBILE HAMBURGER */}
             <button
               onClick={() => setOpen((o) => !o)}
               className="md:hidden p-2 rounded-lg hover:bg-emerald-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300"
@@ -487,7 +512,7 @@ const Navbar = () => {
         </div>
       </div>
 
-      {/* MOBILE MENU */}
+      {/* MOBILE MENU - FIXED: Auto-closes on link click */}
       {open && (
         <div className="md:hidden bg-white dark:bg-slate-900 border-t border-emerald-100 dark:border-slate-800">
           <div className="px-4 py-4 space-y-2">
@@ -501,6 +526,50 @@ const Navbar = () => {
                 {link.name}
               </Link>
             ))}
+            {/* Additional mobile menu items */}
+            {user ? (
+              <>
+                <Link
+                  to={userRole === "doctor" ? "/doctor-dashboard" : "/patient-dashboard"}
+                  onClick={closeMobileMenu}
+                  className="block px-4 py-3 rounded-lg hover:bg-emerald-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300"
+                >
+                  My Dashboard
+                </Link>
+                {userRole === "patient" && (
+                  <Link
+                    to="/doctor-search"
+                    onClick={closeMobileMenu}
+                    className="block px-4 py-3 rounded-lg hover:bg-emerald-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300"
+                  >
+                    Find a Doctor
+                  </Link>
+                )}
+                <button
+                  onClick={handleLogout}
+                  className="w-full text-left px-4 py-3 rounded-lg hover:bg-red-50 dark:hover:bg-red-950/20 text-red-600"
+                >
+                  Logout
+                </button>
+              </>
+            ) : (
+              <>
+                <Link
+                  to="/login"
+                  onClick={closeMobileMenu}
+                  className="block px-4 py-3 rounded-lg hover:bg-emerald-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300"
+                >
+                  Login
+                </Link>
+                <Link
+                  to="/create-account"
+                  onClick={closeMobileMenu}
+                  className="block px-4 py-3 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700"
+                >
+                  Sign Up
+                </Link>
+              </>
+            )}
           </div>
         </div>
       )}

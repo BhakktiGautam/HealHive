@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useParams, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../Context/AuthContext";
 import {
@@ -13,7 +13,63 @@ import {
   CheckCircle,
   MessageCircle,
   Calendar,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
+
+// ─── Scheduling helpers ────────────────────────────────────────────────────────
+
+/**
+ * Returns the next 14 days (starting today) with availability metadata.
+ * Sundays are always marked unavailable; 30 % of other days are randomly
+ * unavailable (seeded by doctorId so the pattern is stable per doctor).
+ */
+const buildAvailableDates = (doctorId) => {
+  const seededRand = (seed) => {
+    // simple LCG for deterministic pseudo-random
+    const x = Math.sin(seed + 1) * 10000;
+    return x - Math.floor(x);
+  };
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const dates = [];
+
+  for (let i = 0; i < 14; i++) {
+    const d = new Date(today);
+    d.setDate(today.getDate() + i);
+    const isSunday = d.getDay() === 0;
+    const seedVal = (doctorId || 1) * 100 + i;
+    const rand = seededRand(seedVal);
+    const available = !isSunday && rand > 0.3;
+    dates.push({ date: d, available });
+  }
+  return dates;
+};
+
+/**
+ * Given a doctor's timeSlots array and a date, return the slots for that day.
+ * Slots are rotated per day so each day has a slightly different set.
+ */
+const getSlotsForDate = (timeSlots, date) => {
+  if (!Array.isArray(timeSlots) || timeSlots.length === 0) return [];
+  // Rotate the base slots by day-of-month to vary availability per day
+  const offset = date.getDate() % timeSlots.length;
+  return timeSlots.map((slot, idx) => ({
+    ...slot,
+    // slots near offset become unavailable on this specific date
+    available: slot.available && (idx + offset) % 3 !== 0,
+  }));
+};
+
+/** Formats a Date → "Mon, Jun 23" */
+const formatDate = (date) =>
+  date.toLocaleDateString("en-IN", { weekday: "short", month: "short", day: "numeric" });
+
+/** Formats a Date → "Monday" */
+const formatDay = (date) =>
+  date.toLocaleDateString("en-IN", { weekday: "long" });
+// ──────────────────────────────────────────────────────────────────────────────
 import Navbar from "../Homepage/Navbar";
 import Footer from "../Homepage/footer";
 import { getDoctorById, getStableRating, getStableReviews } from "../utils/doctorFilterService";
@@ -25,6 +81,7 @@ const DoctorProfile = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const [selectedDate, setSelectedDate] = useState(null);
   const [selectedSlot, setSelectedSlot] = useState(null);
   const [hasPaid, setHasPaid] = useState(false);
   const [consultationId, setConsultationId] = useState("");
@@ -126,6 +183,8 @@ const DoctorProfile = () => {
     
     // Inline payment modal (no page change)
     setShowPayment(true);
+    const dateStr = selectedDate ? selectedDate.toLocaleDateString("en-IN", { weekday: "short", month: "short", day: "numeric", year: "numeric" }) : "";
+    const slotFull = dateStr ? `${dateStr} at ${selectedSlot}` : selectedSlot;
     (async () => {
       try {
         const token = await user.getIdToken();
@@ -144,7 +203,7 @@ const DoctorProfile = () => {
           body: JSON.stringify({
             doctorId: doctor.source === "registered" ? doctor.id : doctor.id, // supports both
             doctorName: doctor.name,
-            slotTime: selectedSlot,
+            slotTime: slotFull,
             amount: feeValue * 100, // in paise for INR
             currency: "inr",
           }),
@@ -173,7 +232,7 @@ const DoctorProfile = () => {
               "Content-Type": "application/json",
               Authorization: `Bearer ${token}`,
             },
-            body: JSON.stringify({ doctorId: doctor.id, doctorName: doctor.name, slotTime: selectedSlot, fee: feeValue }),
+            body: JSON.stringify({ doctorId: doctor.id, doctorName: doctor.name, slotTime: slotFull, fee: feeValue }),
           });
           const data2 = await res2.json();
           if (res2.ok && data2.consultationId) {
@@ -215,6 +274,7 @@ const DoctorProfile = () => {
   return (
     <>
       <Navbar />
+
       <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-teal-50 py-8 px-4 sm:px-6 lg:px-8">
         {/* Background gradients */}
         <div className="absolute -top-24 -left-24 h-96 w-96 bg-emerald-200/40 rounded-full blur-3xl animate-pulse" />
@@ -365,51 +425,58 @@ const DoctorProfile = () => {
             {/* Sidebar - Booking */}
             <div className="lg:col-span-1">
               <div className="bg-white rounded-3xl border border-emerald-100 shadow-sm p-6 sticky top-20 animate-fadeUp">
-                <h3 className="text-xl font-bold text-slate-900 mb-6 flex items-center gap-2">
-                  <Calendar className="h-5 w-5 text-emerald-600" /> Select Time Slot
+                <h3 className="text-xl font-bold text-slate-900 mb-5 flex items-center gap-2">
+                  <Calendar className="h-5 w-5 text-emerald-600" /> Book Appointment
                 </h3>
 
-                <div className="space-y-3 mb-6">
-                  {Array.isArray(doctor.timeSlots) && doctor.timeSlots.length > 0 ? (
-                    doctor.timeSlots.map((slot, idx) => (
-                      <button
-                        key={idx}
-                        onClick={() => setSelectedSlot(slot.time)}
-                        disabled={!slot.available}
-                        className={`w-full py-3 rounded-xl font-semibold transition ${
-                          slot.available
-                            ? selectedSlot === slot.time
-                              ? "bg-emerald-600 text-white border-2 border-emerald-600"
-                              : "bg-white border-2 border-emerald-200 text-slate-900 hover:border-emerald-400"
-                            : "bg-slate-100 text-slate-400 border-2 border-slate-200 cursor-not-allowed"
-                        }`}
-                      >
-                        {slot.time}
-                        {!slot.available && " (Booked)"}
-                        {slot.available && selectedSlot === slot.time && (
-                          <CheckCircle className="inline-block h-4 w-4 ml-2" />
-                        )}
-                      </button>
-                    ))
-                  ) : (
-                    <p className="text-sm text-slate-600 text-center py-4">
-                      No time slots available today
-                    </p>
-                  )}
-                </div>
+                {/* ── Calendar ── */}
+                <AppointmentCalendar
+                  doctorId={doctor.id}
+                  selectedDate={selectedDate}
+                  onSelectDate={(date) => {
+                    setSelectedDate(date);
+                    setSelectedSlot(null); // reset slot when date changes
+                  }}
+                />
 
-                {selectedSlot && (
-                  <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 mb-6">
-                    <p className="text-sm text-slate-600 mb-1">Selected Time</p>
-                    <p className="text-lg font-bold text-emerald-700">{selectedSlot}</p>
+                {/* ── Time Slots for selected date ── */}
+                {selectedDate && (
+                  <div className="mt-5">
+                    <p className="text-sm font-semibold text-slate-700 mb-3">
+                      Available slots for{" "}
+                      <span className="text-emerald-700">{formatDate(selectedDate)}</span>
+                    </p>
+                    <TimeSlotPicker
+                      timeSlots={doctor.timeSlots}
+                      selectedDate={selectedDate}
+                      selectedSlot={selectedSlot}
+                      onSelectSlot={setSelectedSlot}
+                    />
+                  </div>
+                )}
+
+                {/* ── Booking summary ── */}
+                {selectedDate && selectedSlot && (
+                  <div className="mt-4 bg-emerald-50 border border-emerald-200 rounded-xl p-4">
+                    <p className="text-xs font-semibold text-emerald-700 uppercase tracking-wide mb-2">Your Appointment</p>
+                    <div className="flex items-center gap-2 mb-1">
+                      <Calendar className="h-4 w-4 text-emerald-600 flex-shrink-0" />
+                      <span className="text-sm font-semibold text-slate-900">
+                        {formatDay(selectedDate)}, {formatDate(selectedDate)}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Clock className="h-4 w-4 text-emerald-600 flex-shrink-0" />
+                      <span className="text-sm font-semibold text-slate-900">{selectedSlot}</span>
+                    </div>
                   </div>
                 )}
 
                 <button
                   onClick={handleBookConsultation}
-                  disabled={!selectedSlot}
-                  className={`w-full py-4 rounded-xl font-bold text-lg transition ${
-                    selectedSlot
+                  disabled={!selectedSlot || !selectedDate}
+                  className={`w-full py-4 rounded-xl font-bold text-lg transition mt-4 ${
+                    selectedSlot && selectedDate
                       ? "bg-gradient-to-r from-emerald-600 via-teal-600 to-green-600 text-white hover:shadow-lg"
                       : "bg-slate-200 text-slate-400 cursor-not-allowed"
                   }`}
@@ -583,5 +650,142 @@ const InlinePaymentForm = ({ doctor, selectedSlot, pendingConsultationId, user, 
     </form>
   );
 };
+
+// ─── AppointmentCalendar ───────────────────────────────────────────────────────
+const AppointmentCalendar = ({ doctorId, selectedDate, onSelectDate }) => {
+  const availableDates = useMemo(() => buildAvailableDates(doctorId), [doctorId]);
+
+  // Week-based pagination: show 7 days per page
+  const [weekOffset, setWeekOffset] = useState(0);
+  const startIdx = weekOffset * 7;
+  const visibleDates = availableDates.slice(startIdx, startIdx + 7);
+  const canPrev = weekOffset > 0;
+  const canNext = startIdx + 7 < availableDates.length;
+
+  const DAY_LABELS = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  // Determine the month/year label for the current week view
+  const firstVisible = visibleDates[0]?.date;
+  const monthLabel = firstVisible
+    ? firstVisible.toLocaleDateString("en-IN", { month: "long", year: "numeric" })
+    : "";
+
+  return (
+    <div>
+      {/* Month + navigation */}
+      <div className="flex items-center justify-between mb-3">
+        <span className="text-sm font-semibold text-slate-700">{monthLabel}</span>
+        <div className="flex gap-1">
+          <button
+            onClick={() => setWeekOffset((w) => w - 1)}
+            disabled={!canPrev}
+            className={`p-1 rounded-lg transition ${
+              canPrev ? "hover:bg-emerald-50 text-emerald-700" : "text-slate-300 cursor-not-allowed"
+            }`}
+            aria-label="Previous week"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </button>
+          <button
+            onClick={() => setWeekOffset((w) => w + 1)}
+            disabled={!canNext}
+            className={`p-1 rounded-lg transition ${
+              canNext ? "hover:bg-emerald-50 text-emerald-700" : "text-slate-300 cursor-not-allowed"
+            }`}
+            aria-label="Next week"
+          >
+            <ChevronRight className="h-4 w-4" />
+          </button>
+        </div>
+      </div>
+
+      {/* Day-of-week headers */}
+      <div className="grid grid-cols-7 gap-1 mb-1">
+        {visibleDates.map(({ date }) => (
+          <div key={date.toISOString()} className="text-center text-xs text-slate-400 font-medium">
+            {DAY_LABELS[date.getDay()]}
+          </div>
+        ))}
+      </div>
+
+      {/* Date cells */}
+      <div className="grid grid-cols-7 gap-1">
+        {visibleDates.map(({ date, available }) => {
+          const isToday = date.getTime() === today.getTime();
+          const isSelected = selectedDate && date.getTime() === selectedDate.getTime();
+          return (
+            <button
+              key={date.toISOString()}
+              disabled={!available}
+              onClick={() => onSelectDate(date)}
+              title={!available ? "Unavailable" : formatDate(date)}
+              className={[
+                "flex flex-col items-center justify-center rounded-xl py-2 text-xs font-semibold transition select-none",
+                isSelected
+                  ? "bg-emerald-600 text-white shadow-md"
+                  : available
+                  ? isToday
+                    ? "bg-emerald-50 border-2 border-emerald-400 text-emerald-700 hover:bg-emerald-100"
+                    : "bg-white border border-emerald-200 text-slate-800 hover:border-emerald-400 hover:bg-emerald-50"
+                  : "bg-slate-100 text-slate-300 cursor-not-allowed border border-slate-200",
+              ].join(" ")}
+            >
+              <span>{date.getDate()}</span>
+              {isToday && !isSelected && (
+                <span className="text-[9px] text-emerald-600 leading-none">Today</span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+
+// ─── TimeSlotPicker ───────────────────────────────────────────────────────────
+const TimeSlotPicker = ({ timeSlots, selectedDate, selectedSlot, onSelectSlot }) => {
+  const slots = useMemo(
+    () => (selectedDate ? getSlotsForDate(timeSlots, selectedDate) : []),
+    [timeSlots, selectedDate]
+  );
+
+  if (!slots || slots.length === 0) {
+    return (
+      <p className="text-sm text-slate-500 text-center py-3 bg-slate-50 rounded-xl border border-slate-200">
+        No slots available for this day
+      </p>
+    );
+  }
+
+  return (
+    <div className="grid grid-cols-2 gap-2">
+      {slots.map((slot, idx) => {
+        const isSelected = selectedSlot === slot.time;
+        return (
+          <button
+            key={idx}
+            disabled={!slot.available}
+            onClick={() => onSelectSlot(slot.time)}
+            className={[
+              "py-2.5 rounded-xl text-sm font-semibold border-2 transition flex items-center justify-center gap-1",
+              slot.available
+                ? isSelected
+                  ? "bg-emerald-600 border-emerald-600 text-white"
+                  : "bg-white border-emerald-200 text-slate-800 hover:border-emerald-400"
+                : "bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed",
+            ].join(" ")}
+          >
+            {slot.time}
+            {!slot.available && <span className="text-[10px]">(Booked)</span>}
+            {isSelected && slot.available && <CheckCircle className="h-3.5 w-3.5" />}
+          </button>
+        );
+      })}
+    </div>
+  );
+};
+// ──────────────────────────────────────────────────────────────────────────────
 
 export default DoctorProfile;

@@ -31,7 +31,7 @@ export default function CTASection() {
             style={{ animationDelay: "240ms" }}
           >
             <Link
-              to="/patient-form"
+              to="/doctor-profile"
               className="inline-flex items-center justify-center gap-3 bg-white text-emerald-700 font-semibold px-7 py-4 rounded-full shadow-lg"
             >
               Consult Now

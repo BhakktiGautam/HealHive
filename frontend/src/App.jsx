@@ -6,9 +6,14 @@ import KeyFeatures from './Homepage/KeyFeatures';
 import Navbar from './Homepage/Navbar';
 import Specialties from './Homepage/Specialties';
 import BackToTop from './Homepage/BackToTop';
+
 import ConsultationHistory from './pages/ConsultationHistory';
+
+import BackToTop from './components/BackToTop';
+
 function App() {
   return (
+     <div className="App">
     <>
       <Navbar />
       <Hero />
@@ -20,6 +25,7 @@ function App() {
       <BackToTop />
       <Route path="/consultations" element={<ConsultationHistory />} />
     </>
+    </div>
   );
 }
 

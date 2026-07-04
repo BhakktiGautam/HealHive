@@ -41,6 +41,8 @@ medicalDocuments: {
       name: String,
       size: String,
       type: String,
+      url: String,
+      date: String,
     },
   ],
   default: [], // Ensures it's always an array even if empty
